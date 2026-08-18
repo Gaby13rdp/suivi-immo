@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publier vers mon téléphone — Suivi Le Mans</title>
+<link rel="icon" href="./icone-192.png">
+<style>
+:root{
+  color-scheme: light;
+  --plane:#f9f9f7; --surface-1:#fcfcfb; --surface-2:#f3f2ee;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+  --border:rgba(11,11,11,.10); --accent:#2a78d6;
+  --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --plane:#0d0d0d; --surface-1:#1a1a19; --surface-2:#222221;
+    --text-primary:#fff; --text-secondary:#c3c2b7; --text-muted:#898781;
+    --border:rgba(255,255,255,.10); --accent:#3987e5;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--plane);color:var(--text-primary);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.5;
+}
+.wrap{max-width:720px;margin:0 auto;padding:26px 18px 60px}
+h1{font-size:21px;margin:0 0 4px}
+.sub{color:var(--text-secondary);font-size:13.5px;margin-bottom:22px}
+section{background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:16px 16px 18px;margin-bottom:14px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);margin:0 0 4px}
+h2 .etape{display:inline-block;width:19px;height:19px;border-radius:50%;background:var(--accent);color:#fff;
+          text-align:center;line-height:19px;font-size:11px;margin-right:7px;letter-spacing:0}
+.aide{font-size:12.5px;color:var(--text-muted);margin:6px 0 12px;line-height:1.5}
+label{display:block;font-size:12px;color:var(--text-secondary);margin:10px 0 3px}
+input[type=text],input[type=password]{
+  width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;
+  background:var(--surface-2);color:var(--text-primary);font-family:inherit;font-size:14px;
+}
+.rangee{display:flex;gap:10px;flex-wrap:wrap}
+.rangee>div{flex:1 1 200px}
+button{
+  font-family:inherit;font-size:14px;font-weight:550;padding:10px 16px;border-radius:10px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text-primary);cursor:pointer;margin-top:12px;
+}
+button.principal{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.5;cursor:not-allowed}
+button+button{margin-left:8px}
+.etat{margin-top:12px;font-size:13px;padding:9px 11px;border-radius:9px;background:var(--surface-2);display:none}
+.etat.on{display:block}
+.etat.ok{border-left:3px solid var(--good)}
+.etat.ko{border-left:3px solid var(--critical)}
+.etat.info{border-left:3px solid var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+td{padding:5px 0;border-bottom:1px solid var(--border)}
+td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:550}
+#journal{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--text-muted);
+         white-space:pre-wrap;max-height:190px;overflow:auto;margin-top:10px}
+a{color:var(--accent)}
+.pastille{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
+.zone{border:1.5px dashed var(--border);border-radius:12px;padding:18px;text-align:center;color:var(--text-muted);
+      font-size:13px;margin-top:10px;cursor:pointer}
+.zone.survol{border-color:var(--accent);color:var(--accent)}
+code{background:var(--surface-2);padding:1px 5px;border-radius:5px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Publier vers mon téléphone</h1>
+  <div class="sub">Lit le classeur Excel, en extrait les chiffres, et les envoie sur votre page privée.
+    <br>Rien n’est installé sur l’ordinateur : tout se passe dans cette page.</div>
+
+  <section>
+    <h2><span class="etape">1</span>Connexion à GitHub</h2>
+    <div class="aide">À remplir une seule fois. Ces informations restent dans ce navigateur, sur cet ordinateur.</div>
+    <div class="rangee">
+      <div>
+        <label for="owner">Votre identifiant GitHub</label>
+        <input type="text" id="owner" placeholder="ex. gdenis" autocomplete="off">
+      </div>
+      <div>
+        <label for="repo">Nom du dépôt</label>
+        <input type="text" id="repo" placeholder="ex. suivi-immo" autocomplete="off">
+      </div>
+    </div>
+    <label for="token">Jeton d’accès (ghp_… ou github_pat_…)</label>
+    <input type="password" id="token" placeholder="collez le jeton ici" autocomplete="off">
+    <button id="btn-verifier">Vérifier la connexion</button>
+    <button id="btn-oublier">Oublier le jeton</button>
+    <div class="etat" id="etat-connexion"></div>
+  </section>
+
+  <section>
+    <h2><span class="etape">2</span>Publier les données du classeur</h2>
+    <div class="aide">Dans Excel : <b>Données → Actualiser tout</b>, puis <b>Enregistrer</b>. Ensuite déposez le classeur ici.</div>
+    <div class="zone" id="zone-fichier">Cliquez ici ou déposez <b>Suivi_investissement_immobilier_Le_Mans.xlsx</b></div>
+    <input type="file" id="fichier" accept=".xlsx,.xlsm" style="display:none">
+    <div class="etat" id="etat-lecture"></div>
+    <div id="apercu"></div>
+    <button class="principal" id="btn-publier" disabled>Publier vers le téléphone</button>
+    <button id="btn-telecharger" disabled>Télécharger data.json</button>
+    <div class="etat" id="etat-publication"></div>
+  </section>
+
+  <section>
+    <details id="bloc-install">
+      <summary>Installation de l’application (à faire une seule fois)</summary>
+      <div class="aide">Envoie les fichiers de l’application dans le dépôt, puis active la page web.
+        Sélectionnez le dossier <code>application</code> reçu avec ce fichier.</div>
+      <input type="file" id="dossier" webkitdirectory directory multiple style="display:none">
+      <button id="btn-dossier">Choisir le dossier « application »</button>
+      <button id="btn-installer" disabled>Installer sur GitHub</button>
+      <div class="etat" id="etat-install"></div>
+    </details>
+  </section>
+
+  <section>
+    <h2>Journal</h2>
+    <div id="journal">prêt.</div>
+  </section>
+</div>
+
+<script>
+/* ==========================================================================
+   Publieur — lit un .xlsx (zip + XML) et envoie un data.json sur GitHub.
+   Aucune dépendance, aucun serveur.
+   ========================================================================== */
+(function(){
+'use strict';
+var CLE = 'immo.publieur.config';
+var config = {owner:'', repo:'', branch:'main', token:''};
+var donnees = null;
+
+function $(id){ return document.getElementById(id); }
+function log(msg){
+  var j = $('journal');
+  j.textContent += '\n' + new Date().toLocaleTimeString('fr-FR') + '  ' + msg;
+  j.scrollTop = j.scrollHeight;
+}
+function etat(id, type, html){
+  var e = $(id);
+  e.className = 'etat on ' + type;
+  e.innerHTML = html;
+}
+
+/* ---------- configuration ---------- */
+try { config = Object.assign(config, JSON.parse(localStorage.getItem(CLE) || '{}')); } catch(e){}
+['owner','repo','token'].forEach(function(k){
+  $(k).value = config[k] || '';
+  $(k).addEventListener('change', function(){
+    config[k] = $(k).value.trim();
+    localStorage.setItem(CLE, JSON.stringify(config));
+  });
+  $(k).addEventListener('input', function(){ config[k] = $(k).value.trim(); });
+});
+$('btn-oublier').onclick = function(){
+  config.token = ''; $('token').value = '';
+  localStorage.setItem(CLE, JSON.stringify(config));
+  etat('etat-connexion', 'info', 'Jeton effacé de ce navigateur.');
+};
+
+/* ==========================================================================
+   1. LECTURE DU FICHIER XLSX  (ZIP + XML, sans bibliothèque)
+   ========================================================================== */
+function ouvrirZip(buf){
+  var dv = new DataView(buf), fin = -1;
+  for (var i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--){
+    if (dv.getUint32(i, true) === 0x06054b50){ fin = i; break; }
+  }
+  if (fin < 0) throw new Error('Ce fichier n’est pas un classeur Excel valide (archive illisible).');
+  var nb = dv.getUint16(fin + 10, true), off = dv.getUint32(fin + 16, true), entrees = {};
+  var dec = new TextDecoder('utf-8');
+  for (var k = 0; k < nb; k++){
+    if (dv.getUint32(off, true) !== 0x02014b50) throw new Error('Archive Excel corrompue (entrée ' + k + ').');
+    var methode = dv.getUint16(off + 10, true);
+    var tailleComp = dv.getUint32(off + 20, true);
+    var nLen = dv.getUint16(off + 28, true), eLen = dv.getUint16(off + 30, true), cLen = dv.getUint16(off + 32, true);
+    var local = dv.getUint32(off + 42, true);
+    var nom = dec.decode(new Uint8Array(buf, off + 46, nLen));
+    entrees[nom] = {methode:methode, taille:tailleComp, local:local};
+    off += 46 + nLen + eLen + cLen;
+  }
+  return {buf:buf, dv:dv, entrees:entrees};
+}
+function lire(zip, nom){
+  var e = zip.entrees[nom];
+  if (!e) return Promise.resolve(null);
+  var dv = zip.dv;
+  var nLen = dv.getUint16(e.local + 26, true), eLen = dv.getUint16(e.local + 28, true);
+  var debut = e.local + 30 + nLen + eLen;
+  var taille = e.taille;
+  if (!taille || taille === 0xffffffff) taille = dv.getUint32(e.local + 18, true);
+  var data = new Uint8Array(zip.buf, debut, taille);
+  if (e.methode === 0) return Promise.resolve(new TextDecoder('utf-8').decode(data));
+  if (e.methode !== 8) return Promise.reject(new Error('Compression ZIP non gérée (' + e.methode + ') pour ' + nom));
+  if (typeof DecompressionStream === 'undefined')
+    return Promise.reject(new Error('Navigateur trop ancien : utilisez Google Chrome ou Microsoft Edge à jour.'));
+  var flux = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Response(flux).text();
+}
+function xml(txt){ return new DOMParser().parseFromString(txt, 'application/xml'); }
+function balises(doc, nom){ return Array.prototype.slice.call(doc.getElementsByTagName(nom)); }
+
+function serieVersDate(n){
+  if (typeof n !== 'number' || !isFinite(n) || n <= 0) return null;
+  var ms = Date.UTC(1899, 11, 30) + Math.round(n) * 86400000;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+function refDecoupe(ref){
+  var m = /^(?:'((?:[^']|'')+)'|([^!']+))!(.+)$/.exec(ref);
+  if (!m) return null;
+  return {feuille: m[1] ? m[1].replace(/''/g, "'") : m[2], plage: m[3].replace(/\$/g, '')};
+}
+function colonneVersNum(c){
+  var n = 0;
+  for (var i = 0; i < c.length; i++) n = n * 26 + (c.charCodeAt(i) - 64);
+  return n;
+}
+
+async function analyserClasseur(fichier){
+  var buf = await fichier.arrayBuffer();
+  var zip = ouvrirZip(buf);
+
+  /* --- chaînes partagées --- */
+  var partagees = [];
+  var ssTxt = await lire(zip, 'xl/sharedStrings.xml');
+  if (ssTxt){
+    var ssDoc = xml(ssTxt);
+    balises(ssDoc, 'si').forEach(function(si){
+      var t = '';
+      balises(si, 't').forEach(function(n){ t += n.textContent; });
+      partagees.push(t);
+    });
+  }
+
+  /* --- feuilles --- */
+  var wbTxt = await lire(zip, 'xl/workbook.xml');
+  if (!wbTxt) throw new Error('Classeur illisible : xl/workbook.xml absent.');
+  var wb = xml(wbTxt);
+  var relsTxt = await lire(zip, 'xl/_rels/workbook.xml.rels');
+  var cibles = {};
+  balises(xml(relsTxt), 'Relationship').forEach(function(r){
+    cibles[r.getAttribute('Id')] = r.getAttribute('Target').replace(/^\/?xl\//, '').replace(/^\//, '');
+  });
+  var feuilles = {};
+  balises(wb, 'sheet').forEach(function(s){
+    var rid = s.getAttribute('r:id') ||
+      s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    feuilles[s.getAttribute('name')] = 'xl/' + cibles[rid];
+  });
+
+  /* --- noms définis --- */
+  var noms = {};
+  balises(wb, 'definedName').forEach(function(d){
+    if (d.getAttribute('localSheetId') !== null) return;
+    noms[d.getAttribute('name')] = d.textContent;
+  });
+
+  /* --- lecture d'une feuille : dictionnaire { "C5": valeur } --- */
+  var cacheFeuilles = {};
+  async function cellules(nomFeuille){
+    if (cacheFeuilles[nomFeuille]) return cacheFeuilles[nomFeuille];
+    var chemin = feuilles[nomFeuille];
+    if (!chemin) throw new Error('Onglet « ' + nomFeuille + ' » introuvable dans le classeur.');
+    var doc = xml(await lire(zip, chemin));
+    var res = {};
+    balises(doc, 'c').forEach(function(c){
+      var r = c.getAttribute('r'), t = c.getAttribute('t'), v = null;
+      var vn = c.getElementsByTagName('v')[0];
+      var isn = c.getElementsByTagName('is')[0];
+      if (t === 'inlineStr'){ v = isn ? isn.textContent : ''; }
+      else if (!vn){ v = null; }
+      else if (t === 's'){ v = partagees[parseInt(vn.textContent, 10)]; }
+      else if (t === 'str' || t === 'e'){ v = vn.textContent; }
+      else if (t === 'b'){ v = vn.textContent === '1'; }
+      else { v = parseFloat(vn.textContent); }
+      res[r] = v;
+    });
+    cacheFeuilles[nomFeuille] = res;
+    return res;
+  }
+  async function parNom(nom){
+    var ref = noms[nom]; if (!ref) return null;
+    var d = refDecoupe(ref); if (!d) return null;
+    var c = await cellules(d.feuille);
+    return c[d.plage.split(':')[0]];
+  }
+  async function colonneParNom(nom){
+    var ref = noms[nom]; if (!ref) return [];
+    var d = refDecoupe(ref); if (!d) return [];
+    var bornes = d.plage.split(':');
+    var m1 = /^([A-Z]+)(\d+)$/.exec(bornes[0]), m2 = /^([A-Z]+)(\d+)$/.exec(bornes[1] || bornes[0]);
+    var c = await cellules(d.feuille), out = [];
+    for (var r = +m1[2]; r <= +m2[2]; r++) out.push(c[m1[1] + r]);
+    return out;
+  }
+  function nombre(v){ return (typeof v === 'number' && isFinite(v)) ? v : 0; }
+
+  /* --- paramètres --- */
+  var refPrix = refDecoupe(noms['Prix_Achat'] || '');
+  var feuilleParams = refPrix ? refPrix.feuille : 'Paramètres';
+  var cellParams = await cellules(feuilleParams);
+  var params = {
+    prix_achat: nombre(await parNom('Prix_Achat')),
+    nb_studios: Math.round(nombre(await parNom('Nb_Studios'))) || 1,
+    ville: String(cellParams['C7'] || ''),
+    date_acquisition: serieVersDate(await parNom('Date_Acquisition')),
+    budget_travaux: nombre(await parNom('Budget_Travaux')),
+    frais_acte_hors_releve: nombre(await parNom('Frais_Acte_Hors_Releve')),
+    emprunt_total: nombre(await parNom('Emprunt_Total')),
+    deblocage_hors_compte: nombre(await parNom('Deblocage_Hors_Compte')),
+    date_fin_differe: serieVersDate(await parNom('Date_Fin_Differe')),
+    mensualite_hors_assurance: nombre(await parNom('Mensualite_Hors_Assurance')),
+    assurance_mensuelle: nombre(await parNom('Assurance_Mensuelle')),
+    cout_credit_total: nombre(await parNom('Cout_Credit_Total'))
+  };
+
+  /* --- table des catégories --- */
+  var cn = await colonneParNom('Cat_Nature'), cc = await colonneParNom('Cat_CatFin');
+  var ct = await colonneParNom('Cat_Type'), cr = await colonneParNom('Cat_Recurrent');
+  var cats = [];
+  for (var i = 0; i < cn.length; i++){
+    if (cn[i] === undefined || cn[i] === null || String(cn[i]).trim() === '') continue;
+    cats.push([String(cn[i]), String(cc[i] === undefined || cc[i] === null ? '' : cc[i]),
+               String(ct[i] === undefined || ct[i] === null ? '' : ct[i]),
+               String(cr[i] === undefined || cr[i] === null ? '' : cr[i])]);
+  }
+
+  /* --- transactions --- */
+  var refTx = refDecoupe(noms['Tx_Date'] || '');
+  var feuilleTx = refTx ? refTx.feuille : 'Transactions';
+  var cellTx = await cellules(feuilleTx);
+  var derniere = 1;
+  Object.keys(cellTx).forEach(function(r){
+    var m = /^([A-Z]+)(\d+)$/.exec(r);
+    if (m && colonneVersNum(m[1]) <= 12 && +m[2] > derniere && cellTx[r] !== null && cellTx[r] !== '') derniere = +m[2];
+  });
+  var tx = [];
+  for (var r = 2; r <= derniere; r++){
+    var date = cellTx['A' + r], lib = cellTx['B' + r], mont = cellTx['E' + r];
+    var vide = (date === undefined || date === null || date === '') &&
+               (lib === undefined || lib === null || lib === '') &&
+               (mont === undefined || mont === null || mont === '');
+    if (vide) continue;
+    var s = function(x){ return (x === undefined || x === null) ? '' : String(x); };
+    tx.push([
+      serieVersDate(date),
+      nombre(mont),
+      s(cellTx['F' + r]), s(cellTx['G' + r]), s(cellTx['H' + r]), s(cellTx['I' + r]),
+      (s(cellTx['J' + r]).trim().toUpperCase() === 'X') ? 1 : 0,
+      s(cellTx['K' + r])
+    ]);
+  }
+  if (!tx.length) throw new Error('Aucune transaction lue : le classeur a-t-il bien été enregistré après actualisation ?');
+
+  /* --- valeurs calculées par Excel (contrôle de cohérence) --- */
+  var excel = null;
+  try {
+    var D = await cellules('Dashboard');
+    var n2 = function(a){ var v = D[a]; return (typeof v === 'number' && isFinite(v)) ? Math.round(v * 100) / 100 : null; };
+    var top = [], st = [], det = [], men = [];
+    for (var t1 = 43; t1 <= 52; t1++) if (D['B' + t1]) top.push([String(D['B' + t1]), n2('C' + t1)]);
+    for (var t2 = 82; t2 <= 88; t2++) if (D['H' + t2]) st.push([String(D['H' + t2]), n2('I' + t2), n2('J' + t2)]);
+    for (var t3 = 56; t3 <= 101; t3++) if (D['B' + t3]) det.push([String(D['B' + t3]), n2('D' + t3)]);
+    for (var t4 = 39; t4 <= 200; t4++){
+      var jour = D['H' + t4];
+      if (typeof jour !== 'number' || !isFinite(jour)) break;
+      men.push([serieVersDate(jour), n2('I' + t4), n2('J' + t4), n2('L' + t4)]);
+    }
+    excel = {
+      cout_total_investissement:n2('C17'), cout_revient:n2('C19'), frais_acquisition:n2('C13'),
+      travaux:n2('C14'), ameublement:n2('C15'), autres_invest:n2('C16'), frais_financement:n2('C18'),
+      recettes_total:n2('F15'), loyers:n2('F12'), deblocages:n2('F16'), avancement_travaux:n2('F18'),
+      depenses_exploitation:n2('C22'), interets:n2('C23'), assurance_emprunteur:n2('C24'),
+      couts_reels_total:n2('C26'), capital_debloque:n2('F22'), reste_a_debloquer:n2('F23'),
+      capital_rembourse:n2('F24'), dette_restante:n2('F25'), mensualite_apres_differe:n2('F27'),
+      loyer_equilibre:n2('F28'), resultat_exploitation:n2('C30'), resultat_courant:n2('C31'),
+      cash_flow_cumule:n2('C32'), apport_personnel:n2('C33'), emplois:n2('L15'), ressources:n2('L20'),
+      ecart_reconciliation:n2('L21'), cout_credit:n2('L22'),
+      top10: top, studios: st, detail_nature: det, mensuel: men
+    };
+  } catch(e){ log('contrôle Excel indisponible : ' + e.message); }
+
+  return {
+    schema: 1,
+    generated_at: new Date().toISOString().replace(/\.\d+Z$/, 'Z'),
+    source: 'publier.html',
+    repo: (config.owner && config.repo) ? (config.owner + '/' + config.repo) : null,
+    workbook: {nom: fichier.name, modified: new Date(fichier.lastModified).toISOString().replace(/\.\d+Z$/, 'Z')},
+    bien: {titre: 'Immeuble de ' + params.nb_studios + ' studios', ville: params.ville},
+    params: params, cats: cats, tx: tx, excel: excel
+  };
+}
+
+/* ==========================================================================
+   2. CLIENT GITHUB
+   ========================================================================== */
+function api(chemin, options){
+  options = options || {};
+  var entetes = {'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28'};
+  if (config.token) entetes['Authorization'] = 'Bearer ' + config.token;
+  if (options.body) entetes['Content-Type'] = 'application/json';
+  return fetch('https://api.github.com' + chemin, {
+    method: options.method || 'GET',
+    headers: entetes,
+    body: options.body ? JSON.stringify(options.body) : undefined
+  }).then(function(r){
+    return r.text().then(function(t){
+      var j = null; try { j = t ? JSON.parse(t) : null; } catch(e){}
+      return {ok:r.ok, statut:r.status, corps:j, texte:t};
+    });
+  });
+}
+function base64(texte){
+  var octets = new TextEncoder().encode(texte), bin = '';
+  for (var i = 0; i < octets.length; i++) bin += String.fromCharCode(octets[i]);
+  return btoa(bin);
+}
+function base64Octets(u8){
+  var bin = '';
+  for (var i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+  return btoa(bin);
+}
+async function envoyerFichier(chemin, contenuB64, message){
+  var actuel = await api('/repos/' + config.owner + '/' + config.repo + '/contents/' + chemin + '?ref=' + config.branch);
+  var corps = {message: message, content: contenuB64, branch: config.branch};
+  if (actuel.ok && actuel.corps && actuel.corps.sha) corps.sha = actuel.corps.sha;
+  var rep = await api('/repos/' + config.owner + '/' + config.repo + '/contents/' + chemin, {method:'PUT', body: corps});
+  if (!rep.ok) throw new Error(chemin + ' : ' + (rep.corps && rep.corps.message ? rep.corps.message : 'erreur ' + rep.statut));
+  return rep;
+}
+
+$('btn-verifier').onclick = async function(){
+  config.owner = $('owner').value.trim(); config.repo = $('repo').value.trim(); config.token = $('token').value.trim();
+  localStorage.setItem(CLE, JSON.stringify(config));
+  if (!config.owner || !config.repo || !config.token){
+    etat('etat-connexion', 'ko', 'Renseignez l’identifiant, le nom du dépôt et le jeton.');
+    return;
+  }
+  etat('etat-connexion', 'info', 'Vérification…');
+  var r = await api('/repos/' + config.owner + '/' + config.repo);
+  if (r.ok){
+    config.branch = (r.corps && r.corps.default_branch) || 'main';
+    localStorage.setItem(CLE, JSON.stringify(config));
+    etat('etat-connexion', 'ok', '<span class="pastille" style="background:var(--good)"></span>Dépôt <b>' +
+      config.owner + '/' + config.repo + '</b> accessible (branche ' + config.branch + ').');
+    log('connexion OK, branche ' + config.branch);
+  } else if (r.statut === 404){
+    etat('etat-connexion', 'ko', 'Dépôt introuvable, ou le jeton n’a pas accès à ce dépôt. Vérifiez le nom exact et les autorisations du jeton (Contents : lecture et écriture).');
+  } else if (r.statut === 401){
+    etat('etat-connexion', 'ko', 'Jeton refusé (401). Il est peut-être expiré : régénérez-le sur GitHub.');
+  } else {
+    etat('etat-connexion', 'ko', 'Erreur ' + r.statut + ' : ' + (r.corps && r.corps.message ? r.corps.message : ''));
+  }
+};
+
+/* ==========================================================================
+   3. LECTURE + APERÇU + PUBLICATION
+   ========================================================================== */
+var zone = $('zone-fichier');
+zone.onclick = function(){ $('fichier').click(); };
+['dragenter','dragover'].forEach(function(ev){
+  zone.addEventListener(ev, function(e){ e.preventDefault(); zone.classList.add('survol'); });
+});
+['dragleave','drop'].forEach(function(ev){
+  zone.addEventListener(ev, function(e){ e.preventDefault(); zone.classList.remove('survol'); });
+});
+zone.addEventListener('drop', function(e){
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) traiter(e.dataTransfer.files[0]);
+});
+$('fichier').onchange = function(){ if (this.files[0]) traiter(this.files[0]); };
+
+async function traiter(fichier){
+  etat('etat-lecture', 'info', 'Lecture de ' + fichier.name + '…');
+  $('apercu').innerHTML = '';
+  $('btn-publier').disabled = true; $('btn-telecharger').disabled = true;
+  try {
+    donnees = await analyserClasseur(fichier);
+    var e = donnees.excel || {};
+    var lignes = [
+      ['Opérations lues', donnees.tx.length],
+      ['Coût de revient', euro(e.cout_revient)],
+      ['Apport personnel', euro(e.apport_personnel)],
+      ['Cash-flow cumulé', euro(e.cash_flow_cumule)],
+      ['Dette restante', euro(e.dette_restante)],
+      ['Écart de réconciliation', euro(e.ecart_reconciliation)],
+      ['Classeur enregistré le', new Date(fichier.lastModified).toLocaleString('fr-FR')]
+    ];
+    $('apercu').innerHTML = '<table>' + lignes.map(function(l){
+      return '<tr><td>' + l[0] + '</td><td>' + l[1] + '</td></tr>';
+    }).join('') + '</table>';
+    var vieux = (Date.now() - fichier.lastModified) > 36e5;
+    etat('etat-lecture', 'ok', '<span class="pastille" style="background:var(--good)"></span>Classeur lu : ' +
+      donnees.tx.length + ' opérations, ' + donnees.cats.length + ' catégories.' +
+      (vieux ? '<br><span style="color:var(--warning)">⚠ Le fichier n’a pas été enregistré depuis plus d’une heure : pensez à Actualiser tout puis Enregistrer dans Excel avant de publier.</span>' : ''));
+    log('classeur analysé : ' + donnees.tx.length + ' transactions');
+    $('btn-publier').disabled = false; $('btn-telecharger').disabled = false;
+  } catch(err){
+    etat('etat-lecture', 'ko', 'Échec de la lecture : ' + err.message);
+    log('ERREUR ' + err.message);
+    donnees = null;
+  }
+}
+function euro(v){
+  return (v === null || v === undefined) ? '—' :
+    v.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+}
+
+$('btn-telecharger').onclick = function(){
+  if (!donnees) return;
+  var blob = new Blob([JSON.stringify(donnees)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'data.json'; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+  log('data.json téléchargé');
+};
+
+$('btn-publier').onclick = async function(){
+  if (!donnees) return;
+  if (!config.owner || !config.repo || !config.token){
+    etat('etat-publication', 'ko', 'Renseignez d’abord la connexion GitHub (étape 1).'); return;
+  }
+  donnees.repo = config.owner + '/' + config.repo;
+  $('btn-publier').disabled = true;
+  etat('etat-publication', 'info', 'Envoi en cours…');
+  try {
+    await envoyerFichier('data.json', base64(JSON.stringify(donnees)),
+      'Mise à jour des données — ' + new Date().toLocaleString('fr-FR'));
+    var url = 'https://' + config.owner + '.github.io/' + config.repo + '/';
+    etat('etat-publication', 'ok', '<span class="pastille" style="background:var(--good)"></span>Publié. ' +
+      'Le téléphone affichera les nouveaux chiffres dans la minute qui suit.<br><a href="' + url + '" target="_blank">' + url + '</a>');
+    log('data.json publié (' + JSON.stringify(donnees).length + ' octets)');
+  } catch(err){
+    etat('etat-publication', 'ko', 'Échec : ' + err.message);
+    log('ERREUR publication : ' + err.message);
+  }
+  $('btn-publier').disabled = false;
+};
+
+/* ==========================================================================
+   4. INSTALLATION DE L'APPLICATION (une seule fois)
+   ========================================================================== */
+var fichiersApp = [];
+$('btn-dossier').onclick = function(){ $('dossier').click(); };
+$('dossier').onchange = function(){
+  fichiersApp = Array.prototype.slice.call(this.files).filter(function(f){
+    return !/(^|\/)\./.test(f.webkitRelativePath || f.name);
+  });
+  etat('etat-install', 'info', fichiersApp.length + ' fichier(s) sélectionné(s) : ' +
+    fichiersApp.map(function(f){ return f.name; }).join(', '));
+  $('btn-installer').disabled = fichiersApp.length === 0;
+};
+$('btn-installer').onclick = async function(){
+  if (!config.owner || !config.repo || !config.token){
+    etat('etat-install', 'ko', 'Renseignez d’abord la connexion GitHub (étape 1).'); return;
+  }
+  $('btn-installer').disabled = true;
+  etat('etat-install', 'info', 'Envoi des fichiers…');
+  try {
+    for (var i = 0; i < fichiersApp.length; i++){
+      var f = fichiersApp[i];
+      var nom = (f.webkitRelativePath || f.name).split('/').slice(1).join('/') || f.name;
+      var u8 = new Uint8Array(await f.arrayBuffer());
+      await envoyerFichier(nom, base64Octets(u8), 'Installation de l’application');
+      log('envoyé : ' + nom);
+      etat('etat-install', 'info', 'Envoi ' + (i+1) + '/' + fichiersApp.length + ' : ' + nom);
+    }
+    var pages = await api('/repos/' + config.owner + '/' + config.repo + '/pages', {
+      method:'POST', body:{source:{branch: config.branch, path:'/'}}
+    });
+    var url = 'https://' + config.owner + '.github.io/' + config.repo + '/';
+    if (pages.ok || pages.statut === 409){
+      etat('etat-install', 'ok', '<span class="pastille" style="background:var(--good)"></span>Application installée et page web activée.<br>' +
+        'Adresse à ouvrir sur le téléphone (comptez 1 à 2 minutes la première fois) :<br><a href="' + url + '" target="_blank">' + url + '</a>');
+    } else {
+      etat('etat-install', 'ok', 'Fichiers envoyés. Activez la page web à la main : <b>Settings → Pages → Branch : ' +
+        config.branch + ' / (root) → Save</b>, puis ouvrez <a href="' + url + '" target="_blank">' + url + '</a>' +
+        '<br><span style="color:var(--text-muted)">(activation automatique refusée : ' + pages.statut + ')</span>');
+    }
+    log('installation terminée');
+  } catch(err){
+    etat('etat-install', 'ko', 'Échec : ' + err.message);
+    log('ERREUR installation : ' + err.message);
+  }
+  $('btn-installer').disabled = false;
+};
+
+if (location.protocol === 'file:'){
+  var av = document.createElement('div');
+  av.className = 'aide';
+  av.style.cssText = 'margin:-10px 0 18px;padding:10px 12px;border-radius:10px;background:var(--surface-1);border:1px solid var(--border)';
+  av.innerHTML = 'Cette page est ouverte depuis votre disque : c’est le mode « première installation ». ' +
+    'Une fois l’application installée, utilisez plutôt la version en ligne ' +
+    '<b>https://votre-identifiant.github.io/votre-depot/publier.html</b> et mettez-la en favori — ' +
+    'le jeton sera à ressaisir une fois, puis retenu.';
+  document.querySelector('.sub').after(av);
+}
+log('page prête · ' + (location.protocol === 'file:' ? 'ouverte depuis le disque' : location.origin));
+})();
+</script>
+</body>
+</html>
