@@ -1,0 +1,17 @@
+{
+  "name": "Suivi Le Mans — 13 rue de la Paille",
+  "short_name": "Suivi Le Mans",
+  "description": "Tableau de bord de l'investissement immobilier, synchronisé depuis le classeur Excel.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9f9f7",
+  "theme_color": "#f9f9f7",
+  "lang": "fr",
+  "icons": [
+    { "src": "./icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icone-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
