@@ -1,6 +1,6 @@
 /* Service worker : coquille de l'application en cache (fonctionnement hors ligne),
    données toujours cherchées sur le réseau d'abord. */
-var VERSION = 'immo-v1';
+var VERSION = 'immo-v2';
 var SHELL = ['./', './index.html', './engine.js', './manifest.webmanifest', './icone-192.png', './icone-512.png'];
 
 self.addEventListener('install', function (e) {
