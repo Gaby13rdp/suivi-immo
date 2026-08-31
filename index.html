@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
-<title>Suivi Le Mans</title>
+<title>Suivi</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icone-192.png">
 <link rel="apple-touch-icon" href="./icone-192.png">
@@ -154,17 +154,64 @@ footer button{background:none;border:0;color:var(--series-1);font-size:11.5px;cu
 #erreur{display:none;background:var(--surface-1);border:1px solid var(--critical);border-radius:12px;
         padding:12px;margin-top:14px;font-size:13px}
 @media (min-width:560px){ .tiles{grid-template-columns:repeat(3,1fr)} .tile.hero{grid-column:span 3} }
+
+/* ---------- écran de déverrouillage ---------- */
+#verrou{
+  position:fixed; inset:0; z-index:60; background:var(--plane);
+  display:none; align-items:center; justify-content:center;
+  padding:calc(env(safe-area-inset-top) + 20px) 18px 20px;
+}
+#verrou.on{display:flex}
+.coffre{
+  width:100%; max-width:330px; text-align:center;
+  background:var(--surface-1); border:1px solid var(--border);
+  border-radius:16px; padding:26px 20px 22px; box-shadow:var(--shadow);
+}
+.coffre .cadenas{font-size:30px;line-height:1}
+.coffre h2{margin:12px 0 4px;font-size:15px;text-transform:none;letter-spacing:0;color:var(--text-primary)}
+.coffre p{margin:0 0 16px;font-size:12.5px;color:var(--text-secondary)}
+.coffre input[type=password]{
+  width:100%; padding:11px 12px; font-size:16px; font-family:inherit;
+  border:1px solid var(--border); border-radius:10px;
+  background:var(--surface-2); color:var(--text-primary); text-align:center;
+}
+.coffre .memo{display:flex;align-items:center;justify-content:center;gap:7px;
+  margin:12px 0 4px;font-size:12px;color:var(--text-secondary)}
+.coffre .memo input{width:16px;height:16px;accent-color:var(--series-1)}
+.coffre button{
+  width:100%; margin-top:12px; padding:11px; font-size:14.5px; font-weight:600;
+  font-family:inherit; border:0; border-radius:10px;
+  background:var(--series-1); color:#fff; cursor:pointer;
+}
+.coffre button:disabled{opacity:.55;cursor:progress}
+.coffre .msg{margin-top:10px;font-size:12.5px;min-height:1.2em;color:var(--critical)}
+.coffre .pied{margin-top:14px;font-size:11px;color:var(--text-muted);line-height:1.45}
 </style>
 </head>
 <body>
 
+<div id="verrou">
+  <div class="coffre">
+    <div class="cadenas" aria-hidden="true">🔒</div>
+    <h2>Suivi protégé</h2>
+    <p id="verrou-invite">Saisissez le mot de passe pour afficher les chiffres.</p>
+    <input type="password" id="mdp" autocomplete="current-password" enterkeyhint="go"
+           aria-label="Mot de passe" placeholder="mot de passe">
+    <label class="memo"><input type="checkbox" id="retenir" checked>Rester déverrouillé sur cet appareil</label>
+    <button id="btn-ouvrir">Déverrouiller</button>
+    <div class="msg" id="verrou-msg" role="status"></div>
+    <div class="pied">Les données sont chiffrées sur le serveur.<br>Le mot de passe ne quitte jamais ce téléphone.</div>
+  </div>
+</div>
+
 <header>
   <div class="head-in">
     <div>
-      <h1 id="titre">Suivi Le Mans</h1>
+      <h1 id="titre">Suivi</h1>
       <div class="sub" id="soustitre">chargement…</div>
     </div>
     <div class="head-actions">
+      <button class="icon" id="btn-verrouiller" title="Verrouiller" aria-label="Verrouiller" style="display:none">🔒</button>
       <button class="icon" id="btn-theme" title="Thème" aria-label="Changer de thème">◐</button>
       <button class="icon" id="btn-refresh" title="Actualiser" aria-label="Actualiser">⟳</button>
     </div>
@@ -192,7 +239,10 @@ footer button{background:none;border:0;color:var(--series-1);font-size:11.5px;cu
 'use strict';
 var M = window.Moteur;
 var CLE_DATA = 'immo.data.v1', CLE_THEME = 'immo.theme', CLE_FILTRES = 'immo.filtres';
-var data = null, filtres = {annee:'Toutes', studio:'Tous', perimetre:'Toutes les dépenses'};
+var CLE_CLE = 'immo.cle.v1';
+var data = null;                 // données en clair, utilisables (null tant que verrouillé)
+var enveloppe = null;            // ce qui a été téléchargé (chiffré ou non)
+var filtres = {annee:'Toutes', studio:'Tous', perimetre:'Toutes les dépenses'};
 
 /* ---------- utilitaires ---------- */
 var eur = M.fmtEur, dateFr = M.fmtDate;
@@ -223,18 +273,129 @@ document.getElementById('btn-theme').onclick = function(){
 };
 appliquerTheme();
 
+/* ==========================================================================
+   COFFRE — déchiffrement du fichier publié.
+   BLOC IDENTIQUE (aux fonctions de chiffrement près) DANS publier.html.
+   Format : PBKDF2-SHA256 (sel + itérations publics) puis AES-GCM 256.
+   L'enveloppe laisse en clair ce qui n'est pas confidentiel (date de
+   publication, dépôt) pour pouvoir comparer les versions sans déverrouiller.
+   ========================================================================== */
+function b64u8(b){ var s = atob(b), u = new Uint8Array(s.length); for (var i=0;i<s.length;i++) u[i] = s.charCodeAt(i); return u; }
+function u8b64(u){ var s = ''; for (var i=0;i<u.length;i++) s += String.fromCharCode(u[i]); return btoa(s); }
+function deriverCle(motdepasse, selB64, iterations){
+  var base = crypto.subtle.importKey('raw', new TextEncoder().encode(motdepasse), 'PBKDF2', false, ['deriveKey']);
+  return base.then(function(k){
+    return crypto.subtle.deriveKey(
+      {name:'PBKDF2', salt:b64u8(selB64), iterations:iterations, hash:'SHA-256'},
+      k, {name:'AES-GCM', length:256}, true, ['encrypt','decrypt']);
+  });
+}
+function estChiffre(env){ return !!(env && env.chiffre && env.kdf && env.charge && env.iv); }
+function dechiffrer(env, cle){
+  return crypto.subtle.decrypt({name:'AES-GCM', iv:b64u8(env.iv)}, cle, b64u8(env.charge))
+    .then(function(buf){
+      var clair = JSON.parse(new TextDecoder().decode(buf)), res = {};
+      for (var a in env) if (a !== 'charge' && a !== 'iv' && a !== 'kdf' && a !== 'chiffre') res[a] = env[a];
+      for (var b in clair) res[b] = clair[b];
+      return res;
+    });
+}
+function memoriserCle(cle, sel){
+  return crypto.subtle.exportKey('raw', cle).then(function(brut){
+    try { localStorage.setItem(CLE_CLE, JSON.stringify({sel:sel, cle:u8b64(new Uint8Array(brut))})); } catch(e){}
+  });
+}
+function cleMemorisee(env){
+  var m = null;
+  try { m = JSON.parse(localStorage.getItem(CLE_CLE) || 'null'); } catch(e){}
+  if (!m || !m.cle || !env.kdf || m.sel !== env.kdf.sel) return Promise.resolve(null);
+  return crypto.subtle.importKey('raw', b64u8(m.cle), {name:'AES-GCM'}, true, ['encrypt','decrypt'])
+    .catch(function(){ return null; });
+}
+function oublierCle(){ localStorage.removeItem(CLE_CLE); }
+
+/* ---------- écran de déverrouillage ---------- */
+function verrouOuvert(){ return document.getElementById('verrou').classList.contains('on'); }
+function montrerVerrou(message){
+  var deja = verrouOuvert();
+  if (message) document.getElementById('verrou-msg').textContent = message;
+  if (deja) return;                       // ne pas effacer une saisie en cours
+  document.getElementById('verrou-msg').textContent = message || '';
+  document.getElementById('verrou').classList.add('on');
+  var champ = document.getElementById('mdp');
+  champ.value = '';
+  setTimeout(function(){ champ.focus(); }, 60);
+}
+function masquerVerrou(){
+  document.getElementById('verrou').classList.remove('on');
+  document.getElementById('mdp').value = '';
+  document.getElementById('verrou-msg').textContent = '';
+  document.getElementById('btn-verrouiller').style.display = estChiffre(enveloppe) ? 'flex' : 'none';
+}
+function deverrouiller(){
+  var champ = document.getElementById('mdp'), bouton = document.getElementById('btn-ouvrir');
+  var mdp = champ.value;
+  if (!mdp || !estChiffre(enveloppe)) return;
+  bouton.disabled = true; bouton.textContent = 'Déverrouillage…';
+  document.getElementById('verrou-msg').textContent = '';
+  deriverCle(mdp, enveloppe.kdf.sel, enveloppe.kdf.iterations)
+    .then(function(cle){
+      return dechiffrer(enveloppe, cle).then(function(d){
+        if (document.getElementById('retenir').checked) memoriserCle(cle, enveloppe.kdf.sel);
+        else oublierCle();
+        data = d; masquerVerrou(); rendre();
+      });
+    })
+    .catch(function(){
+      document.getElementById('verrou-msg').textContent = 'Mot de passe incorrect.';
+      champ.value = ''; champ.focus();
+    })
+    .then(function(){ bouton.disabled = false; bouton.textContent = 'Déverrouiller'; });
+}
+document.getElementById('btn-ouvrir').onclick = deverrouiller;
+document.getElementById('mdp').addEventListener('keydown', function(e){ if (e.key === 'Enter') deverrouiller(); });
+document.getElementById('btn-verrouiller').onclick = function(){
+  oublierCle(); data = null;
+  document.getElementById('app').innerHTML = '';
+  document.getElementById('app').className = 'skel';
+  montrerVerrou();
+};
+
+/* ---------- adoption d'une enveloppe (chiffrée ou non) ---------- */
+function adopter(env, memoriser){
+  enveloppe = env;
+  if (memoriser !== false){ try { localStorage.setItem(CLE_DATA, JSON.stringify(env)); } catch(e){} }
+  if (!estChiffre(env)){
+    data = env;
+    document.getElementById('btn-verrouiller').style.display = 'none';
+    masquerVerrou(); rendre();
+    return Promise.resolve(true);
+  }
+  document.getElementById('btn-verrouiller').style.display = 'flex';
+  return cleMemorisee(env).then(function(cle){
+    if (!cle){ montrerVerrou(); return false; }
+    return dechiffrer(env, cle).then(function(d){
+      data = d; masquerVerrou(); rendre(); return true;
+    }).catch(function(){
+      oublierCle(); data = null;
+      montrerVerrou('Le mot de passe a changé : saisissez le nouveau.');
+      return false;
+    });
+  });
+}
+
 /* ---------- chargement des données ---------- */
 function urlsSource(){
   var u = ['./data.json?v=' + Date.now()];
   try {
-    var d = data || JSON.parse(localStorage.getItem(CLE_DATA) || 'null');
+    var d = enveloppe || JSON.parse(localStorage.getItem(CLE_DATA) || 'null');
     if (d && d.repo) u.push('https://raw.githubusercontent.com/' + d.repo + '/main/data.json?v=' + Date.now());
   } catch(e){}
   return u;
 }
 function charger(forcer){
   if (window.DONNEES_INTEGREES){          // fichier d'aperçu autonome
-    data = window.DONNEES_INTEGREES; rendre(); return Promise.resolve();
+    return adopter(window.DONNEES_INTEGREES, false);
   }
   var btn = document.getElementById('btn-refresh');
   btn.classList.add('spin');
@@ -247,16 +408,13 @@ function charger(forcer){
       if (d && d.schema && (!bon || (d.generated_at||'') > (bon.generated_at||''))) bon = d;
     });
     if (bon){
-      var ancien = data;
-      if (!ancien || (bon.generated_at||'') >= (ancien.generated_at||'')){
-        data = bon;
-        try { localStorage.setItem(CLE_DATA, JSON.stringify(bon)); } catch(e){}
-      }
-      rendre();
-    } else if (!data){
+      if (!enveloppe || (bon.generated_at||'') >= (enveloppe.generated_at||'')) return adopter(bon);
+      return true;
+    }
+    if (!data && !verrouOuvert()){
       erreur('Impossible de récupérer les données.<br>Vérifiez votre connexion, puis appuyez sur ⟳.');
     }
-  }).finally(function(){ btn.classList.remove('spin'); });
+  }).catch(function(){}).then(function(r){ btn.classList.remove('spin'); return r; });
 }
 function erreur(html){
   var e = document.getElementById('erreur');
@@ -264,7 +422,7 @@ function erreur(html){
 }
 document.getElementById('btn-refresh').onclick = function(){ charger(true); };
 document.getElementById('btn-vider').onclick = function(){
-  localStorage.removeItem(CLE_DATA);
+  localStorage.removeItem(CLE_DATA); oublierCle();
   if ('caches' in window) caches.keys().then(function(k){ k.forEach(function(n){ caches.delete(n); }); });
   location.reload();
 };
@@ -701,7 +859,7 @@ try {
 } catch(e){}
 try {
   var cache = JSON.parse(localStorage.getItem(CLE_DATA) || 'null');
-  if (cache && cache.schema){ data = cache; rendre(); }
+  if (cache && cache.schema) adopter(cache, false);
 } catch(e){}
 charger();
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) charger(); });
