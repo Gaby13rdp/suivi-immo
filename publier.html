@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Publier vers mon téléphone — Suivi Le Mans</title>
+<title>Publier vers mon téléphone</title>
 <link rel="icon" href="./icone-192.png">
 <style>
 :root{
@@ -65,6 +65,10 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
       font-size:13px;margin-top:10px;cursor:pointer}
 .zone.survol{border-color:var(--accent);color:var(--accent)}
 code{background:var(--surface-2);padding:1px 5px;border-radius:5px;font-size:12.5px}
+.bascule{display:flex;align-items:flex-start;gap:9px;margin:12px 0 2px;font-size:13px;color:var(--text-primary);cursor:pointer}
+.bascule input{width:17px;height:17px;margin:2px 0 0;accent-color:var(--accent);flex:0 0 auto}
+.bascule i{color:var(--text-muted);font-style:normal;font-size:12px}
+input[readonly]{color:var(--text-secondary)}
 </style>
 </head>
 <body>
@@ -94,10 +98,48 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px;font-size:12.
   </section>
 
   <section>
-    <h2><span class="etape">2</span>Publier les données du classeur</h2>
-    <div class="aide">Dans Excel : <b>Données → Actualiser tout</b>, puis <b>Enregistrer</b>. Ensuite déposez le classeur ici.</div>
-    <div class="zone" id="zone-fichier">Cliquez ici ou déposez <b>Suivi_investissement_immobilier_Le_Mans.xlsx</b></div>
-    <input type="file" id="fichier" accept=".xlsx,.xlsm" style="display:none">
+    <h2><span class="etape">2</span>Mot de passe de la page</h2>
+    <div class="aide">Obligatoire. Les chiffres sont chiffrés avant d’être envoyés : sans ce mot de passe,
+      la page ne montre rien, même si son adresse est connue. À saisir une fois sur l’ordinateur, une fois sur chaque téléphone.</div>
+    <div id="mdp-defini" style="display:none">
+      <div class="etat on ok"><span class="pastille" style="background:var(--good)"></span>Mot de passe mémorisé sur cet ordinateur.</div>
+      <button id="btn-changer-mdp">Changer le mot de passe</button>
+    </div>
+    <div id="mdp-saisie">
+      <div class="rangee">
+        <div>
+          <label for="mdp1">Mot de passe</label>
+          <input type="password" id="mdp1" autocomplete="new-password" placeholder="au moins 8 caractères">
+        </div>
+        <div>
+          <label for="mdp2">Confirmation</label>
+          <input type="password" id="mdp2" autocomplete="new-password" placeholder="le même">
+        </div>
+      </div>
+      <button class="principal" id="btn-mdp">Enregistrer le mot de passe</button>
+      <button id="btn-annuler-mdp" style="display:none">Annuler</button>
+    </div>
+    <div class="etat" id="etat-mdp"></div>
+  </section>
+
+  <section>
+    <h2><span class="etape">3</span>Publier les chiffres</h2>
+    <div class="aide" id="aide-publier">Dans Excel : <b>Données → Actualiser tout</b>, puis <b>Enregistrer</b>. La publication lit ensuite le fichier sur le disque.</div>
+
+    <div id="bloc-memoire" style="display:none">
+      <div class="etat on info" id="etat-memoire"></div>
+      <label class="bascule"><input type="checkbox" id="surveiller">
+        <span>Publier tout seul dès que le classeur est enregistré <i>(tant que cette page reste ouverte)</i></span></label>
+      <button class="principal" id="btn-maintenant">Publier maintenant</button>
+      <button id="btn-oublier-classeur">Oublier ce classeur</button>
+    </div>
+
+    <div id="bloc-choix">
+      <button class="principal" id="btn-choisir" style="display:none">Mémoriser mon classeur (une seule fois)</button>
+      <div class="zone" id="zone-fichier">Sinon, méthode classique : cliquez ici ou déposez votre classeur <b>.xlsx</b></div>
+      <input type="file" id="fichier" accept=".xlsx,.xlsm" style="display:none">
+    </div>
+
     <div class="etat" id="etat-lecture"></div>
     <div id="apercu"></div>
     <button class="principal" id="btn-publier" disabled>Publier vers le téléphone</button>
@@ -106,10 +148,25 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px;font-size:12.
   </section>
 
   <section>
+    <details id="bloc-excel">
+      <summary>Mettre un bouton dans Excel (à faire une seule fois)</summary>
+      <div class="aide">Un simple lien, <b>pas une macro</b> : le classeur reste un .xlsx ordinaire, sans avertissement de sécurité.
+        Dans Excel, choisissez une cellule libre du tableau de bord (ou <b>Insertion → Formes</b> pour un vrai bouton),
+        puis <b>Insertion → Lien → Adresse web</b> et collez ceci :</div>
+      <input type="text" id="url-bouton" readonly>
+      <button id="btn-copier-url">Copier l’adresse</button>
+      <div class="aide" style="margin-top:12px">Ensuite, la mise à jour tient en trois gestes sans quitter Excel :
+        <b>Actualiser tout</b> → <b>Ctrl+S</b> → clic sur le bouton. La page s’ouvre et publie toute seule.</div>
+      <div class="etat" id="etat-url"></div>
+    </details>
+  </section>
+
+  <section>
     <details id="bloc-install">
       <summary>Installation de l’application (à faire une seule fois)</summary>
       <div class="aide">Envoie les fichiers de l’application dans le dépôt, puis active la page web.
-        Sélectionnez le dossier <code>application</code> reçu avec ce fichier.</div>
+        Sélectionnez le dossier <code>application</code> reçu avec ce fichier.
+        Les données ne sont pas envoyées par cette étape : elles le sont par l’étape 3, chiffrées.</div>
       <input type="file" id="dossier" webkitdirectory directory multiple style="display:none">
       <button id="btn-dossier">Choisir le dossier « application »</button>
       <button id="btn-installer" disabled>Installer sur GitHub</button>
@@ -130,9 +187,12 @@ code{background:var(--surface-2);padding:1px 5px;border-radius:5px;font-size:12.
    ========================================================================== */
 (function(){
 'use strict';
-var CLE = 'immo.publieur.config';
-var config = {owner:'', repo:'', branch:'main', token:''};
-var donnees = null;
+var CLE = 'immo.publieur.config', CLE_CLE = 'immo.publieur.cle';
+var config = {owner:'', repo:'', branch:'main', token:'', sel:'', dernier_publie:0};
+var donnees = null;                 // dernier classeur analysé (en clair, jamais envoyé tel quel)
+var cleCoffre = null;               // clé AES dérivée du mot de passe
+var ITERATIONS = 310000;
+var AUTO = /[?&]auto=1/.test(location.search);
 
 function $(id){ return document.getElementById(id); }
 function log(msg){
@@ -161,6 +221,85 @@ $('btn-oublier').onclick = function(){
   localStorage.setItem(CLE, JSON.stringify(config));
   etat('etat-connexion', 'info', 'Jeton effacé de ce navigateur.');
 };
+
+/* ==========================================================================
+   0a. COFFRE — chiffrement du fichier publié.
+   BLOC JUMEAU DE CELUI DE index.html (qui ne fait que déchiffrer).
+   PBKDF2-SHA256 (sel + itérations publics) puis AES-GCM 256.
+   Le sel ne change pas d'une publication à l'autre : les téléphones gardent
+   leur clé et n'ont pas à ressaisir le mot de passe à chaque fois.
+   ========================================================================== */
+function b64u8(b){ var s = atob(b), u = new Uint8Array(s.length); for (var i=0;i<s.length;i++) u[i] = s.charCodeAt(i); return u; }
+function u8b64(u){ var s = ''; for (var i=0;i<u.length;i++) s += String.fromCharCode(u[i]); return btoa(s); }
+function deriverCle(motdepasse, selB64, iterations){
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(motdepasse), 'PBKDF2', false, ['deriveKey'])
+    .then(function(k){
+      return crypto.subtle.deriveKey(
+        {name:'PBKDF2', salt:b64u8(selB64), iterations:iterations, hash:'SHA-256'},
+        k, {name:'AES-GCM', length:256}, true, ['encrypt','decrypt']);
+    });
+}
+function chiffrer(objet, cle, sel){
+  var enClair = {bien:objet.bien, workbook:objet.workbook, params:objet.params,
+                 cats:objet.cats, tx:objet.tx, excel:objet.excel};
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  return crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, cle, new TextEncoder().encode(JSON.stringify(enClair)))
+    .then(function(buf){
+      return {
+        schema: objet.schema, chiffre: 1,
+        generated_at: objet.generated_at, source: objet.source, repo: objet.repo,
+        kdf: {algo:'PBKDF2-SHA256', iterations:ITERATIONS, sel:sel},
+        iv: u8b64(iv), charge: u8b64(new Uint8Array(buf))
+      };
+    });
+}
+function memoriserCle(cle, sel){
+  return crypto.subtle.exportKey('raw', cle).then(function(brut){
+    localStorage.setItem(CLE_CLE, JSON.stringify({sel:sel, cle:u8b64(new Uint8Array(brut))}));
+  });
+}
+function chargerCleMemorisee(){
+  var m = null;
+  try { m = JSON.parse(localStorage.getItem(CLE_CLE) || 'null'); } catch(e){}
+  if (!m || !m.cle || !config.sel || m.sel !== config.sel) return Promise.resolve(null);
+  return crypto.subtle.importKey('raw', b64u8(m.cle), {name:'AES-GCM'}, true, ['encrypt','decrypt'])
+    .catch(function(){ return null; });
+}
+
+/* ==========================================================================
+   0b. MÉMOIRE DU CLASSEUR (File System Access + IndexedDB)
+   Permet de republier sans redéposer le fichier — et sans ouvrir Excel.
+   Absente de Firefox et du mode file:// : on retombe alors sur le glisser-déposer.
+   ========================================================================== */
+var FSA = (typeof window.showOpenFilePicker === 'function') && location.protocol !== 'file:';
+function baseIDB(){
+  return new Promise(function(res, rej){
+    var r = indexedDB.open('immo-publieur', 1);
+    r.onupgradeneeded = function(){ r.result.createObjectStore('kv'); };
+    r.onsuccess = function(){ res(r.result); };
+    r.onerror = function(){ rej(r.error); };
+  });
+}
+function idb(mode, action){
+  return baseIDB().then(function(db){
+    return new Promise(function(res, rej){
+      var t = db.transaction('kv', mode), d = action(t.objectStore('kv'));
+      t.oncomplete = function(){ res(d && d.result !== undefined ? d.result : null); };
+      t.onerror = function(){ rej(t.error); };
+    });
+  }).catch(function(){ return null; });
+}
+function memoriserClasseur(h){ return idb('readwrite', function(s){ return s.put(h, 'classeur'); }); }
+function classeurMemorise(){ return idb('readonly', function(s){ return s.get('classeur'); }); }
+function oublierClasseur(){ return idb('readwrite', function(s){ return s.delete('classeur'); }); }
+function autorisation(h, demander){
+  if (!h || !h.queryPermission) return Promise.resolve(true);
+  return h.queryPermission({mode:'read'}).then(function(p){
+    if (p === 'granted') return true;
+    if (!demander) return false;
+    return h.requestPermission({mode:'read'}).then(function(q){ return q === 'granted'; });
+  }).catch(function(){ return false; });
+}
 
 /* ==========================================================================
    1. LECTURE DU FICHIER XLSX  (ZIP + XML, sans bibliothèque)
@@ -447,6 +586,7 @@ $('btn-verifier').onclick = async function(){
     localStorage.setItem(CLE, JSON.stringify(config));
     etat('etat-connexion', 'ok', '<span class="pastille" style="background:var(--good)"></span>Dépôt <b>' +
       config.owner + '/' + config.repo + '</b> accessible (branche ' + config.branch + ').');
+    majUrlBouton();
     log('connexion OK, branche ' + config.branch);
   } else if (r.statut === 404){
     etat('etat-connexion', 'ko', 'Dépôt introuvable, ou le jeton n’a pas accès à ce dépôt. Vérifiez le nom exact et les autorisations du jeton (Contents : lecture et écriture).');
@@ -458,8 +598,59 @@ $('btn-verifier').onclick = async function(){
 };
 
 /* ==========================================================================
-   3. LECTURE + APERÇU + PUBLICATION
+   3. MOT DE PASSE
    ========================================================================== */
+var enChangement = false;
+function majMdpUI(){
+  var defini = !!cleCoffre && !enChangement;
+  $('mdp-defini').style.display = defini ? 'block' : 'none';
+  $('mdp-saisie').style.display = defini ? 'none' : 'block';
+  $('btn-annuler-mdp').style.display = (cleCoffre && enChangement) ? 'inline-block' : 'none';
+  $('btn-publier').disabled = !(donnees && cleCoffre);
+}
+async function selPublie(){                 // récupère le sel déjà en ligne, pour ne pas
+  if (!config.owner || !config.repo || !config.token) return null;   // dérégler les téléphones
+  try {
+    var r = await api('/repos/' + config.owner + '/' + config.repo + '/contents/data.json?ref=' + config.branch);
+    if (!r.ok || !r.corps || !r.corps.content) return null;
+    var j = JSON.parse(new TextDecoder().decode(b64u8(r.corps.content.replace(/\s/g, ''))));
+    return (j && j.kdf && j.kdf.sel) || null;
+  } catch(e){ return null; }
+}
+$('btn-mdp').onclick = async function(){
+  var a = $('mdp1').value, b = $('mdp2').value;
+  if (a.length < 8){ etat('etat-mdp', 'ko', 'Choisissez un mot de passe d’au moins 8 caractères.'); return; }
+  if (a !== b){ etat('etat-mdp', 'ko', 'Les deux saisies ne sont pas identiques.'); return; }
+  $('btn-mdp').disabled = true;
+  etat('etat-mdp', 'info', 'Préparation de la clé…');
+  try {
+    var sel = config.sel || (await selPublie()) || u8b64(crypto.getRandomValues(new Uint8Array(16)));
+    cleCoffre = await deriverCle(a, sel, ITERATIONS);
+    await memoriserCle(cleCoffre, sel);
+    config.sel = sel; localStorage.setItem(CLE, JSON.stringify(config));
+    $('mdp1').value = ''; $('mdp2').value = '';
+    enChangement = false; majMdpUI();
+    etat('etat-mdp', 'ok', '<span class="pastille" style="background:var(--good)"></span>Mot de passe enregistré. ' +
+      'Il faudra le saisir une fois sur chaque téléphone.' +
+      (config.dernier_publie ? '<br>Republiez maintenant pour appliquer le changement.' : ''));
+    log('mot de passe défini');
+  } catch(err){
+    etat('etat-mdp', 'ko', 'Échec : ' + err.message);
+  }
+  $('btn-mdp').disabled = false;
+};
+$('btn-changer-mdp').onclick = function(){
+  enChangement = true; majMdpUI();
+  etat('etat-mdp', 'info', 'Saisissez le nouveau mot de passe. Les téléphones le redemanderont à la prochaine publication.');
+  $('mdp1').focus();
+};
+$('btn-annuler-mdp').onclick = function(){ enChangement = false; $('mdp1').value=''; $('mdp2').value=''; majMdpUI(); };
+
+/* ==========================================================================
+   4. LE CLASSEUR : mémorisé (sans Excel) ou déposé
+   ========================================================================== */
+var poigneeClasseur = null, msFichier = 0, enCours = false, minuteur = null;
+
 var zone = $('zone-fichier');
 zone.onclick = function(){ $('fichier').click(); };
 ['dragenter','dragover'].forEach(function(ev){
@@ -473,12 +664,99 @@ zone.addEventListener('drop', function(e){
 });
 $('fichier').onchange = function(){ if (this.files[0]) traiter(this.files[0]); };
 
+$('btn-choisir').onclick = async function(){
+  try {
+    var choix = await window.showOpenFilePicker({
+      multiple: false,
+      types: [{description:'Classeur Excel', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx','.xlsm']}}]
+    });
+    poigneeClasseur = choix[0];
+    await memoriserClasseur(poigneeClasseur);
+    log('classeur mémorisé : ' + poigneeClasseur.name);
+    await majMemoireUI();
+    var f = await poigneeClasseur.getFile();
+    await traiter(f);
+  } catch(err){
+    if (err && err.name === 'AbortError') return;
+    etat('etat-lecture', 'ko', 'Impossible de mémoriser le classeur : ' + err.message);
+  }
+};
+$('btn-oublier-classeur').onclick = async function(){
+  await oublierClasseur(); poigneeClasseur = null;
+  surveiller(false); $('surveiller').checked = false;
+  await majMemoireUI();
+  etat('etat-lecture', 'info', 'Classeur oublié.');
+};
+async function majMemoireUI(){
+  if (!poigneeClasseur){
+    $('bloc-memoire').style.display = 'none';
+    $('bloc-choix').style.display = 'block';
+    $('btn-choisir').style.display = FSA ? 'inline-block' : 'none';
+    return;
+  }
+  $('bloc-memoire').style.display = 'block';
+  $('bloc-choix').style.display = 'none';
+  var ok = await autorisation(poigneeClasseur, false);
+  if (!ok){
+    $('etat-memoire').innerHTML = 'Classeur mémorisé : <b>' + poigneeClasseur.name + '</b>.<br>' +
+      'Le navigateur redemande l’autorisation de le lire : cliquez sur « Publier maintenant ».';
+    return;
+  }
+  try {
+    var f = await poigneeClasseur.getFile();
+    var neuf = f.lastModified > (config.dernier_publie || 0);
+    $('etat-memoire').innerHTML = 'Classeur mémorisé : <b>' + f.name + '</b><br>enregistré le ' +
+      new Date(f.lastModified).toLocaleString('fr-FR') +
+      (neuf ? ' — <b style="color:var(--warning)">pas encore publié</b>' : ' — déjà publié');
+  } catch(err){
+    $('etat-memoire').innerHTML = 'Classeur mémorisé, mais introuvable sur le disque (déplacé ou renommé ?). ' +
+      'Utilisez « Oublier ce classeur » puis mémorisez-le à nouveau.';
+  }
+}
+$('btn-maintenant').onclick = async function(){
+  if (!poigneeClasseur) return;
+  if (!(await autorisation(poigneeClasseur, true))){
+    etat('etat-publication', 'ko', 'Le navigateur n’a pas l’autorisation de lire le classeur.'); return;
+  }
+  try {
+    var f = await poigneeClasseur.getFile();
+    await publierFichier(f, 'manuelle');
+  } catch(err){
+    etat('etat-publication', 'ko', 'Lecture impossible : ' + err.message);
+  }
+};
+
+/* --- surveillance : republie dès qu'Excel a enregistré --- */
+$('surveiller').onchange = function(){ surveiller(this.checked); };
+function surveiller(actif){
+  if (minuteur){ clearInterval(minuteur); minuteur = null; }
+  config.surveiller = !!actif;
+  localStorage.setItem(CLE, JSON.stringify(config));
+  if (!actif){ log('surveillance arrêtée'); return; }
+  minuteur = setInterval(battement, 20000);
+  log('surveillance active : republication automatique à chaque enregistrement du classeur');
+}
+async function battement(){
+  if (document.hidden || enCours || !poigneeClasseur || !cleCoffre) return;
+  if (!(await autorisation(poigneeClasseur, false))) return;
+  try {
+    var f = await poigneeClasseur.getFile();
+    if (f.lastModified <= (config.dernier_publie || 0)) return;
+    log('classeur enregistré à ' + new Date(f.lastModified).toLocaleTimeString('fr-FR') + ' → publication');
+    await publierFichier(f, 'automatique');
+  } catch(err){ /* fichier momentanément verrouillé par Excel : on réessaiera */ }
+}
+
+/* ==========================================================================
+   5. ANALYSE, APERÇU, PUBLICATION
+   ========================================================================== */
 async function traiter(fichier){
   etat('etat-lecture', 'info', 'Lecture de ' + fichier.name + '…');
   $('apercu').innerHTML = '';
   $('btn-publier').disabled = true; $('btn-telecharger').disabled = true;
   try {
     donnees = await analyserClasseur(fichier);
+    msFichier = fichier.lastModified;
     var e = donnees.excel || {};
     var lignes = [
       ['Opérations lues', donnees.tx.length],
@@ -497,11 +775,14 @@ async function traiter(fichier){
       donnees.tx.length + ' opérations, ' + donnees.cats.length + ' catégories.' +
       (vieux ? '<br><span style="color:var(--warning)">⚠ Le fichier n’a pas été enregistré depuis plus d’une heure : pensez à Actualiser tout puis Enregistrer dans Excel avant de publier.</span>' : ''));
     log('classeur analysé : ' + donnees.tx.length + ' transactions');
-    $('btn-publier').disabled = false; $('btn-telecharger').disabled = false;
+    $('btn-telecharger').disabled = false;
+    $('btn-publier').disabled = !cleCoffre;
+    return true;
   } catch(err){
     etat('etat-lecture', 'ko', 'Échec de la lecture : ' + err.message);
     log('ERREUR ' + err.message);
     donnees = null;
+    return false;
   }
 }
 function euro(v){
@@ -509,35 +790,77 @@ function euro(v){
     v.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
 }
 
-$('btn-telecharger').onclick = function(){
+async function enveloppePubliable(){
+  donnees.repo = (config.owner && config.repo) ? (config.owner + '/' + config.repo) : null;
+  return chiffrer(donnees, cleCoffre, config.sel);
+}
+
+$('btn-telecharger').onclick = async function(){
   if (!donnees) return;
-  var blob = new Blob([JSON.stringify(donnees)], {type:'application/json'});
+  if (!cleCoffre){ etat('etat-publication', 'ko', 'Définissez d’abord le mot de passe (étape 2).'); return; }
+  var env = await enveloppePubliable();
+  var blob = new Blob([JSON.stringify(env)], {type:'application/json'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = 'data.json'; a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
-  log('data.json téléchargé');
+  log('data.json chiffré téléchargé');
 };
 
-$('btn-publier').onclick = async function(){
-  if (!donnees) return;
-  if (!config.owner || !config.repo || !config.token){
-    etat('etat-publication', 'ko', 'Renseignez d’abord la connexion GitHub (étape 1).'); return;
+async function publierFichier(fichier, mode){
+  if (!(await traiter(fichier))) return false;
+  return envoyer(mode);
+}
+async function envoyer(mode){
+  if (!donnees) return false;
+  if (!cleCoffre){
+    etat('etat-publication', 'ko', 'Définissez d’abord le mot de passe de la page (étape 2).'); return false;
   }
-  donnees.repo = config.owner + '/' + config.repo;
-  $('btn-publier').disabled = true;
-  etat('etat-publication', 'info', 'Envoi en cours…');
+  if (!config.owner || !config.repo || !config.token){
+    etat('etat-publication', 'ko', 'Renseignez d’abord la connexion GitHub (étape 1).'); return false;
+  }
+  enCours = true;
+  $('btn-publier').disabled = true; $('btn-maintenant').disabled = true;
+  etat('etat-publication', 'info', 'Chiffrement puis envoi…');
+  var reussi = false;
   try {
-    await envoyerFichier('data.json', base64(JSON.stringify(donnees)),
+    var env = await enveloppePubliable();
+    var texte = JSON.stringify(env);
+    await envoyerFichier('data.json', base64(texte),
       'Mise à jour des données — ' + new Date().toLocaleString('fr-FR'));
+    config.dernier_publie = msFichier || Date.now();
+    localStorage.setItem(CLE, JSON.stringify(config));
     var url = 'https://' + config.owner + '.github.io/' + config.repo + '/';
-    etat('etat-publication', 'ok', '<span class="pastille" style="background:var(--good)"></span>Publié. ' +
+    etat('etat-publication', 'ok', '<span class="pastille" style="background:var(--good)"></span>Publié et chiffré' +
+      (mode === 'automatique' ? ' automatiquement' : '') + ' à ' + new Date().toLocaleTimeString('fr-FR') + '. ' +
       'Le téléphone affichera les nouveaux chiffres dans la minute qui suit.<br><a href="' + url + '" target="_blank">' + url + '</a>');
-    log('data.json publié (' + JSON.stringify(donnees).length + ' octets)');
+    log('data.json publié, chiffré (' + texte.length + ' octets)');
+    reussi = true;
   } catch(err){
     etat('etat-publication', 'ko', 'Échec : ' + err.message);
     log('ERREUR publication : ' + err.message);
   }
-  $('btn-publier').disabled = false;
+  enCours = false;
+  $('btn-publier').disabled = false; $('btn-maintenant').disabled = false;
+  await majMemoireUI();
+  return reussi;
+}
+$('btn-publier').onclick = function(){ envoyer('manuelle'); };
+
+/* ==========================================================================
+   6. BOUTON DANS EXCEL
+   ========================================================================== */
+function majUrlBouton(){
+  $('url-bouton').value = (config.owner && config.repo)
+    ? 'https://' + config.owner + '.github.io/' + config.repo + '/publier.html?auto=1'
+    : '(renseignez l’identifiant et le dépôt à l’étape 1)';
+}
+$('btn-copier-url').onclick = function(){
+  var champ = $('url-bouton');
+  champ.select(); champ.setSelectionRange(0, 999);
+  var fini = function(ok){ etat('etat-url', ok ? 'ok' : 'ko', ok ? 'Adresse copiée. Collez-la dans Excel : Insertion → Lien.' : 'Copie refusée par le navigateur : sélectionnez le texte et faites Ctrl+C.'); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(champ.value).then(function(){ fini(true); }, function(){ fini(false); });
+  } else { fini(false); }
 };
 
 /* ==========================================================================
@@ -546,11 +869,15 @@ $('btn-publier').onclick = async function(){
 var fichiersApp = [];
 $('btn-dossier').onclick = function(){ $('dossier').click(); };
 $('dossier').onchange = function(){
+  var exclus = 0;
   fichiersApp = Array.prototype.slice.call(this.files).filter(function(f){
-    return !/(^|\/)\./.test(f.webkitRelativePath || f.name);
+    if (/(^|\/)\./.test(f.webkitRelativePath || f.name)) return false;
+    if (f.name === 'data.json'){ exclus++; return false; }   // les données passent par l'étape 3, chiffrées
+    return true;
   });
   etat('etat-install', 'info', fichiersApp.length + ' fichier(s) sélectionné(s) : ' +
-    fichiersApp.map(function(f){ return f.name; }).join(', '));
+    fichiersApp.map(function(f){ return f.name; }).join(', ') +
+    (exclus ? '<br>data.json est volontairement écarté : les données sont publiées chiffrées à l’étape 3.' : ''));
   $('btn-installer').disabled = fichiersApp.length === 0;
 };
 $('btn-installer').onclick = async function(){
@@ -595,10 +922,57 @@ if (location.protocol === 'file:'){
   av.innerHTML = 'Cette page est ouverte depuis votre disque : c’est le mode « première installation ». ' +
     'Une fois l’application installée, utilisez plutôt la version en ligne ' +
     '<b>https://votre-identifiant.github.io/votre-depot/publier.html</b> et mettez-la en favori — ' +
-    'le jeton sera à ressaisir une fois, puis retenu.';
+    'le jeton sera à ressaisir une fois, puis retenu. La mémorisation du classeur et la publication ' +
+    'automatique n’existent que sur la version en ligne.';
   document.querySelector('.sub').after(av);
 }
-log('page prête · ' + (location.protocol === 'file:' ? 'ouverte depuis le disque' : location.origin));
+
+/* ==========================================================================
+   7. DÉMARRAGE
+   ========================================================================== */
+['owner','repo'].forEach(function(k){ $(k).addEventListener('input', majUrlBouton); });
+
+(async function demarrer(){
+  majUrlBouton();
+  try { cleCoffre = await chargerCleMemorisee(); } catch(e){ cleCoffre = null; }
+  majMdpUI();
+  if (!cleCoffre){
+    etat('etat-mdp', 'info', config.sel
+      ? 'Ce navigateur ne connaît pas le mot de passe : ressaisissez-le pour pouvoir publier.'
+      : 'Aucun mot de passe défini : la publication est bloquée tant qu’il manque.');
+  }
+  if (FSA){
+    poigneeClasseur = await classeurMemorise();
+    await majMemoireUI();
+    if (poigneeClasseur && config.surveiller){ $('surveiller').checked = true; surveiller(true); }
+  } else {
+    await majMemoireUI();
+    if (location.protocol !== 'file:') log('mémorisation du classeur indisponible dans ce navigateur (Chrome ou Edge requis)');
+  }
+  log('page prête · ' + (location.protocol === 'file:' ? 'ouverte depuis le disque' : location.origin) + (AUTO ? ' · mode automatique' : ''));
+
+  if (!AUTO) return;
+  if (!cleCoffre || !poigneeClasseur || !config.owner || !config.repo || !config.token){
+    etat('etat-publication', 'info', 'Publication automatique impossible : terminez d’abord la configuration ci-dessus.');
+    return;
+  }
+  if (!(await autorisation(poigneeClasseur, false))){
+    etat('etat-publication', 'info', 'Un clic est nécessaire : le navigateur redemande l’autorisation de lire le classeur. Cliquez sur « Publier maintenant ».');
+    try { $('btn-maintenant').focus(); } catch(e){}
+    return;
+  }
+  try {
+    var f = await poigneeClasseur.getFile();
+    if (f.lastModified <= (config.dernier_publie || 0)){
+      etat('etat-publication', 'info', 'Le classeur n’a pas changé depuis la dernière publication. ' +
+        'Rien à envoyer — utilisez « Publier maintenant » pour forcer.');
+      return;
+    }
+    await publierFichier(f, 'automatique');
+  } catch(err){
+    etat('etat-publication', 'ko', 'Lecture du classeur impossible : ' + err.message);
+  }
+})();
 })();
 </script>
 </body>
