@@ -1,7 +1,8 @@
 /* Service worker : coquille de l'application en cache (fonctionnement hors ligne),
    données toujours cherchées sur le réseau d'abord. */
-var VERSION = 'immo-v2';
-var SHELL = ['./', './index.html', './engine.js', './manifest.webmanifest', './icone-192.png', './icone-512.png'];
+var VERSION = 'immo-v3-e4';
+var SHELL = ['./', './index.html', './engine.js', './xlsx.js', './donnees.js', './v3.js',
+             './manifest.webmanifest', './icone-192.png', './icone-512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) {
@@ -20,6 +21,9 @@ self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
 
   // données : réseau d'abord, cache de secours
+  // le gabarit est volumineux : réseau uniquement, jamais mis en cache
+  if (url.pathname.endsWith('/gabarit.json')) return;
+
   if (url.pathname.endsWith('/data.json')) {
     e.respondWith(
       fetch(e.request).then(function (r) {
