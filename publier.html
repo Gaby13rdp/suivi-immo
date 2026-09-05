@@ -361,6 +361,7 @@ function colonneVersNum(c){
 
 async function analyserClasseur(fichier){
   var buf = await fichier.arrayBuffer();
+  octetsClasseur = buf;                       // v3 : sert à publier le gabarit chiffré (B17)
   var zip = ouvrirZip(buf);
 
   /* --- chaînes partagées --- */
@@ -477,7 +478,7 @@ async function analyserClasseur(fichier){
     var m = /^([A-Z]+)(\d+)$/.exec(r);
     if (m && colonneVersNum(m[1]) <= 12 && +m[2] > derniere && cellTx[r] !== null && cellTx[r] !== '') derniere = +m[2];
   });
-  var tx = [];
+  var tx = [], libelles = [];
   for (var r = 2; r <= derniere; r++){
     var date = cellTx['A' + r], lib = cellTx['B' + r], mont = cellTx['E' + r];
     var vide = (date === undefined || date === null || date === '') &&
@@ -492,6 +493,7 @@ async function analyserClasseur(fichier){
       (s(cellTx['J' + r]).trim().toUpperCase() === 'X') ? 1 : 0,
       s(cellTx['K' + r])
     ]);
+    libelles.push(s(lib));          // v3 : le libellé brut alimente le grand-livre (B14)
   }
   if (!tx.length) throw new Error('Aucune transaction lue : le classeur a-t-il bien été enregistré après actualisation ?');
 
@@ -530,7 +532,7 @@ async function analyserClasseur(fichier){
     repo: (config.owner && config.repo) ? (config.owner + '/' + config.repo) : null,
     workbook: {nom: fichier.name, modified: new Date(fichier.lastModified).toISOString().replace(/\.\d+Z$/, 'Z')},
     bien: {titre: 'Immeuble de ' + params.nb_studios + ' studios', ville: params.ville},
-    params: params, cats: cats, tx: tx, excel: excel
+    params: params, cats: cats, tx: tx, libelles: libelles, excel: excel
   };
 }
 
@@ -563,6 +565,50 @@ function base64Octets(u8){
   for (var i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
   return btoa(bin);
 }
+var octetsClasseur = null;
+
+/* --------------------------------------------------------------------------
+   v3 — le gabarit publié (B17).
+   Le dépôt est PUBLIC : le classeur, qui porte la ville, les libellés et tous
+   les montants, ne peut y aller qu'en CHIFFRÉ, avec la clé du coffre. Il est
+   republié seulement si son empreinte a changé.
+   -------------------------------------------------------------------------- */
+async function empreinteOctets(buf){
+  var h = await crypto.subtle.digest('SHA-256', buf);
+  return u8b64(new Uint8Array(h));
+}
+async function publierGabarit(){
+  if (!octetsClasseur || !cleCoffre) return null;
+  var emp = await empreinteOctets(octetsClasseur);
+  if (config.gabarit_sha === emp) return 'inchangé';
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  var chiffreBuf = await crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, cleCoffre, octetsClasseur);
+  var env = {schema:1, chiffre:1, sel:config.sel, iv:u8b64(iv), charge:u8b64(new Uint8Array(chiffreBuf))};
+  await envoyerFichier('gabarit.json', base64(JSON.stringify(env)),
+    'Gabarit du classeur (chiffré) — ' + new Date().toLocaleString('fr-FR'));
+  config.gabarit_sha = emp; localStorage.setItem(CLE, JSON.stringify(config));
+  return 'publié';
+}
+
+/* Le site est maître par défaut (A16 n° 4) : republier depuis Excel écraserait
+   les décisions prises au téléphone. On ne fusionne jamais en silence — on
+   demande. */
+async function decisionsEnLigne(){
+  if (!config.owner || !config.repo || !config.token || !cleCoffre) return 0;
+  try {
+    var r = await api('/repos/' + config.owner + '/' + config.repo + '/contents/data.json?ref=' + config.branch);
+    if (!r.ok || !r.corps || !r.corps.content) return 0;
+    var j = JSON.parse(new TextDecoder().decode(b64u8(r.corps.content.replace(/\s/g, ''))));
+    if (!j || !j.charge || !j.iv) return 0;
+    var clair = JSON.parse(new TextDecoder().decode(
+      await crypto.subtle.decrypt({name:'AES-GCM', iv:b64u8(j.iv)}, cleCoffre, b64u8(j.charge))));
+    var d = clair && clair.decisions, n = 0;
+    for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k) &&
+      d[k] && d[k].appareil && d[k].appareil !== 'import-xlsx') n++;
+    return n;
+  } catch(e){ return 0; }
+}
+
 async function envoyerFichier(chemin, contenuB64, message){
   var actuel = await api('/repos/' + config.owner + '/' + config.repo + '/contents/' + chemin + '?ref=' + config.branch);
   var corps = {message: message, content: contenuB64, branch: config.branch};
@@ -823,17 +869,29 @@ async function envoyer(mode){
   etat('etat-publication', 'info', 'Chiffrement puis envoi…');
   var reussi = false;
   try {
+    var nDec = await decisionsEnLigne();
+    if (nDec > 0 && !confirm(nDec + ' décision(s) ont été prises depuis le téléphone et ne sont pas ' +
+        'dans ce classeur. Publier depuis Excel va les remplacer. Continuer ?')){
+      etat('etat-publication', 'ko', 'Publication annulée : les décisions du téléphone ont été conservées. ' +
+        'Exportez d’abord le classeur depuis l’application, puis republiez.');
+      enCours = false; $('btn-publier').disabled = false; $('btn-maintenant').disabled = false;
+      return false;
+    }
     var env = await enveloppePubliable();
     var texte = JSON.stringify(env);
     await envoyerFichier('data.json', base64(texte),
       'Mise à jour des données — ' + new Date().toLocaleString('fr-FR'));
+    var gab = null;
+    try { gab = await publierGabarit(); }
+    catch(eg){ log('gabarit non publié : ' + eg.message); }
     config.dernier_publie = msFichier || Date.now();
     localStorage.setItem(CLE, JSON.stringify(config));
     var url = 'https://' + config.owner + '.github.io/' + config.repo + '/';
     etat('etat-publication', 'ok', '<span class="pastille" style="background:var(--good)"></span>Publié et chiffré' +
       (mode === 'automatique' ? ' automatiquement' : '') + ' à ' + new Date().toLocaleTimeString('fr-FR') + '. ' +
+      (gab === 'publié' ? 'Gabarit d’export mis à jour. ' : '') +
       'Le téléphone affichera les nouveaux chiffres dans la minute qui suit.<br><a href="' + url + '" target="_blank">' + url + '</a>');
-    log('data.json publié, chiffré (' + texte.length + ' octets)');
+    log('data.json publié, chiffré (' + texte.length + ' octets)' + (gab ? ' — gabarit ' + gab : ''));
     reussi = true;
   } catch(err){
     etat('etat-publication', 'ko', 'Échec : ' + err.message);
