@@ -119,7 +119,13 @@
           : '') + '.';
       return sauverEtat();
     }).catch(function (e) {
-      message = 'Export impossible : ' + e.message + '. Le gabarit doit avoir été publié depuis le PC.';
+      /* Les DOMException de WebCrypto ont un `.message` vide : sans le `.name`,
+         un échec de déchiffrement (OperationError = mauvaise clé) était affiché
+         comme un gabarit manquant. */
+      var m = (e && (e.message || e.name)) || 'erreur inconnue';
+      message = 'Export impossible : ' + m + '. ' + (m === 'OperationError'
+        ? 'Le gabarit publié a été chiffré avec un autre mot de passe : republiez-le depuis le PC.'
+        : 'Le gabarit doit avoir été publié depuis le PC.');
     }).then(function () {
       bouton.disabled = false; bouton.textContent = 'Exporter le classeur (.xlsx)';
       redessiner();
