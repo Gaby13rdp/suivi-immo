@@ -148,6 +148,20 @@ details[open] summary::before{content:"▾ "}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;padding:4px 9px;border-radius:999px;
        background:var(--surface-2);color:var(--text-secondary);border:1px solid var(--border)}
 .badge .dot{width:8px;height:8px}
+.v3-btn{display:inline-block;margin:6px 6px 0 0;padding:9px 14px;border:0;border-radius:9px;
+  background:var(--series-1);color:#fff;font:inherit;font-size:13px;cursor:pointer}
+.v3-btn[disabled]{opacity:.45;cursor:default}
+.v3-fichier{display:inline-block;margin:6px 6px 0 0;padding:9px 14px;border-radius:9px;
+  border:1px solid var(--series-1);color:var(--series-1);font-size:13px;cursor:pointer}
+#v3-fichier{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.v3-h3{margin:16px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+.v3-form{display:flex;flex-wrap:wrap;gap:6px}
+.v3-form input,.v3-form select,#v3-jeton{padding:8px;border-radius:8px;border:1px solid var(--grid);
+  background:var(--bg);color:var(--text);font:inherit;font-size:13px;min-width:130px;flex:1 1 130px}
+.v3-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px;border-bottom:1px solid var(--grid)}
+.v3-row span{flex:1}
+.v3-diff{margin-top:10px;padding:10px;border:1px solid var(--grid);border-radius:10px}
+.v3-envoi{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:12.5px}
 footer{margin:18px 4px 0;font-size:11.5px;color:var(--text-muted);text-align:center;line-height:1.6}
 footer button{background:none;border:0;color:var(--series-1);font-size:11.5px;cursor:pointer;padding:0;font-family:inherit}
 .skel{opacity:.45}
@@ -231,6 +245,9 @@ footer button{background:none;border:0;color:var(--series-1);font-size:11.5px;cu
 </div>
 
 <script src="./engine.js"></script>
+<script src="./xlsx.js"></script>
+<script src="./donnees.js"></script>
+<script src="./v3.js"></script>
 <script>
 /* ==========================================================================
    Application — affichage seul. Tous les calculs sont dans engine.js.
@@ -314,6 +331,21 @@ function cleMemorisee(env){
 }
 function oublierCle(){ localStorage.removeItem(CLE_CLE); }
 
+/* ---------- pont vers v3.js ----------------------------------------------
+   v3.js (export XLSX, réimport, saisie depuis le téléphone) est un fichier
+   séparé : index.html ne lui donne que ce dont il a besoin, jamais le mot de
+   passe. La clé dérivée est celle déjà mémorisée par le coffre (B4). */
+function contexteV3(){
+  return {
+    enveloppe: enveloppe,
+    cle: function(){ return enveloppe ? cleMemorisee(enveloppe) : Promise.resolve(null); },
+    b64u8: b64u8, u8b64: u8b64,
+    majDonnees: function(d){ data = d; rendre(); },
+    donnees: function(){ return data; },
+    rendre: function(){ rendre(); }
+  };
+}
+
 /* ---------- écran de déverrouillage ---------- */
 function verrouOuvert(){ return document.getElementById('verrou').classList.contains('on'); }
 function montrerVerrou(message){
@@ -358,6 +390,7 @@ document.getElementById('btn-verrouiller').onclick = function(){
   oublierCle(); data = null;
   document.getElementById('app').innerHTML = '';
   document.getElementById('app').className = 'skel';
+  document.getElementById('pied').innerHTML = '';   // le pied porte des montants : le vider aussi
   montrerVerrou();
 };
 
@@ -793,6 +826,9 @@ function rendre(){
       'son écart de contrôle affichera donc ' + eur(R.recon.ecartClasseur) + ' tant que la formule L15 n’aura pas été complétée.'));
   }
   app.appendChild(s7);
+
+  /* --- section v3 : classeur et saisie (v3.js) --- */
+  if (window.SuiviV3) window.SuiviV3.section(app, data, contexteV3());
 
   /* --- pied : cohérence avec le classeur --- */
   var ec = coherence(R);
