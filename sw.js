@@ -1,6 +1,6 @@
 /* Service worker : coquille de l'application en cache (fonctionnement hors ligne),
    données toujours cherchées sur le réseau d'abord. */
-var VERSION = 'immo-v3-e4';
+var VERSION = 'immo-v3-e5';
 var SHELL = ['./', './index.html', './engine.js', './xlsx.js', './donnees.js', './v3.js',
              './manifest.webmanifest', './icone-192.png', './icone-512.png'];
 
