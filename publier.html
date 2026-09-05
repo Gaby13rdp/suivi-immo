@@ -577,16 +577,28 @@ async function empreinteOctets(buf){
   var h = await crypto.subtle.digest('SHA-256', buf);
   return u8b64(new Uint8Array(h));
 }
+/* Empreinte de la CLÉ du coffre. Le gabarit est chiffré avec elle : si le mot
+   de passe change, le sel ne bouge pas mais la clé si, et un gabarit resté en
+   place devient indéchiffrable côté téléphone (l'export échouait alors sur une
+   OperationError au message vide). On republie donc dès que l'une des deux
+   empreintes — classeur ou clé — a changé. */
+async function empreinteCle(cle){
+  var brut = await crypto.subtle.exportKey('raw', cle);
+  var h = await crypto.subtle.digest('SHA-256', brut);
+  return u8b64(new Uint8Array(h)).slice(0, 12);
+}
 async function publierGabarit(){
   if (!octetsClasseur || !cleCoffre) return null;
   var emp = await empreinteOctets(octetsClasseur);
-  if (config.gabarit_sha === emp) return 'inchangé';
+  var empCle = await empreinteCle(cleCoffre);
+  if (config.gabarit_sha === emp && config.gabarit_cle === empCle) return 'inchangé';
   var iv = crypto.getRandomValues(new Uint8Array(12));
   var chiffreBuf = await crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, cleCoffre, octetsClasseur);
   var env = {schema:1, chiffre:1, sel:config.sel, iv:u8b64(iv), charge:u8b64(new Uint8Array(chiffreBuf))};
   await envoyerFichier('gabarit.json', base64(JSON.stringify(env)),
     'Gabarit du classeur (chiffré) — ' + new Date().toLocaleString('fr-FR'));
-  config.gabarit_sha = emp; localStorage.setItem(CLE, JSON.stringify(config));
+  config.gabarit_sha = emp; config.gabarit_cle = empCle;
+  localStorage.setItem(CLE, JSON.stringify(config));
   return 'publié';
 }
 
